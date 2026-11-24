@@ -1,0 +1,47 @@
+name: Ergebnisse aktualisieren
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # alle 5 Minuten (GitHub startet oft etwas später)
+  workflow_dispatch:         # manuell starten: Actions -> "Ergebnisse aktualisieren" -> Run workflow
+  push:
+    branches: [main]
+
+env:
+  # Hier den Wettkampf eintragen:
+  ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18429
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  aktualisieren:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Ergebnisse abholen
+        run: |
+          mkdir -p site/daten
+          cp index.html site/
+          python abholen.py "$ERGEBNIS_URL" site/daten/ergebnisse.json
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
