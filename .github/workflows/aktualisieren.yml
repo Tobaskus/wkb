@@ -9,7 +9,7 @@ on:
 
 env:
   # Hier den Wettkampf eintragen:
-  ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18429
+  ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/21235
 
 permissions:
   contents: read
