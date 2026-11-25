@@ -91,4 +91,14 @@ jobs:
           fi
           echo "Live-Modus läuft bis $bis Uhr. Nächster Durchlauf in $PAUSE_SEKUNDEN s." | tee -a "$GITHUB_STEP_SUMMARY"
           sleep "$PAUSE_SEKUNDEN"
-          gh workflow run aktualisieren.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f ende="$ENDE" -f stunden=0
+          # GitHub antwortet gelegentlich mit Fehlern (z. B. HTTP 503) – dann mehrfach neu versuchen
+          for versuch in 1 2 3 4 5 6 7 8 9 10; do
+            if gh workflow run aktualisieren.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f ende="$ENDE" -f stunden=0; then
+              echo "Nächster Durchlauf gestartet (Versuch $versuch)."
+              exit 0
+            fi
+            echo "::warning::Start des nächsten Durchlaufs fehlgeschlagen (Versuch $versuch/10) – neuer Versuch in $((versuch * 15)) s"
+            sleep $((versuch * 15))
+          done
+          echo "::error::Nächster Durchlauf konnte nicht gestartet werden – bitte Workflow von Hand neu starten."
+          exit 1
