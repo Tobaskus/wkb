@@ -1,24 +1,35 @@
 name: Ergebnisse aktualisieren
 
+# LIVE-MODUS am Wettkampftag:
+#   Actions -> "Ergebnisse aktualisieren" -> "Run workflow" -> Stunden eintragen -> "Run workflow".
+#   Der Workflow startet sich dann nach jedem Durchlauf selbst neu (etwa alle 2-3 Minuten),
+#   bis die Stunden um sind. Vorzeitig stoppen: Actions -> "Ergebnisse aktualisieren" -> "..." -> "Disable workflow"
+#   (danach wieder "Enable workflow", sonst läuft er auch beim nächsten Mal nicht).
 on:
-  schedule:
-    - cron: "2-59/5 * * * *"   # alle 5 Minuten (:02, :07, …) – nicht zur vollen Stunde, da ist GitHub überlastet
-  workflow_dispatch:         # manuell starten: Actions -> "Ergebnisse aktualisieren" -> Run workflow
+  workflow_dispatch:
+    inputs:
+      stunden:
+        description: "Wie viele Stunden automatisch aktualisieren? (0 = nur einmal)"
+        default: "12"
+      ende:
+        description: "(intern – bitte leer lassen)"
+        default: ""
   push:
     branches: [main]
+  schedule:
+    # Reserve: GitHub startet zeitgesteuerte Läufe leider sehr unzuverlässig
+    - cron: "2-59/5 * * * *"
 
 env:
   # Hier den Wettkampf eintragen:
   ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/21235
+  # Pause zwischen zwei Durchläufen im Live-Modus (Sekunden)
+  PAUSE_SEKUNDEN: 60
 
 permissions:
   contents: read
   pages: write
   id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   abholen:
@@ -44,9 +55,40 @@ jobs:
   veroeffentlichen:
     needs: abholen
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages-veroeffentlichen
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Live-Modus: nächsten Durchlauf starten (auch wenn dieser fehlgeschlagen ist)
+  weiter:
+    needs: [abholen, veroeffentlichen]
+    if: always() && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Nächsten Durchlauf starten
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STUNDEN: ${{ inputs.stunden }}
+          ENDE: ${{ inputs.ende }}
+        run: |
+          jetzt=$(date +%s)
+          if [ -z "$ENDE" ]; then
+            case "$STUNDEN" in ''|0|*[!0-9.]*) echo "Nur ein Durchlauf gewünscht."; exit 0;; esac
+            ENDE=$(python3 -c "print(int($jetzt + float('$STUNDEN') * 3600))")
+          fi
+          bis=$(TZ=Europe/Berlin date -d "@$ENDE" '+%d.%m.%Y %H:%M')
+          if [ "$jetzt" -ge "$ENDE" ]; then
+            echo "Live-Modus beendet (war bis $bis Uhr)." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "Live-Modus läuft bis $bis Uhr. Nächster Durchlauf in $PAUSE_SEKUNDEN s." | tee -a "$GITHUB_STEP_SUMMARY"
+          sleep "$PAUSE_SEKUNDEN"
+          gh workflow run aktualisieren.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f ende="$ENDE" -f stunden=0

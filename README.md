@@ -5,11 +5,23 @@ Medaillenspiegel (je Altersklasse), Ergebnisse und Meldungen mit Filtern für Al
 
 ## So funktioniert es
 
-- `.github/workflows/aktualisieren.yml` läuft alle 5 Minuten (GitHub startet oft etwas später),
-  holt mit `abholen.py` Zeitplan, Meldelisten und Ergebnislisten ab und veröffentlicht
-  `index.html` + `daten/ergebnisse.json` über GitHub Pages.
+- `.github/workflows/aktualisieren.yml` holt mit `abholen.py` Zeitplan, Meldelisten und Ergebnislisten ab
+  und veröffentlicht `index.html` + `daten/ergebnisse.json` über GitHub Pages.
 - Die Seite lädt die Daten jede Minute neu. Ergebnisse erscheinen erst, wenn sie seit
   mindestens 5 Minuten offiziell sind.
+
+## Live-Modus am Wettkampftag
+
+GitHub startet zeitgesteuerte Läufe sehr unzuverlässig. Deshalb am Wettkampftag einmal von Hand starten:
+
+1. *Actions → Ergebnisse aktualisieren → Run workflow*
+2. Bei „Wie viele Stunden automatisch aktualisieren?“ die Dauer eintragen (Standard 12)
+3. *Run workflow*
+
+Der Workflow startet sich danach nach jedem Durchlauf selbst neu (etwa alle 2–3 Minuten), bis die Zeit um ist.
+
+**Vorzeitig stoppen:** *Actions → Ergebnisse aktualisieren → ⋯ → Disable workflow*
+(vor dem nächsten Wettkampf wieder *Enable workflow*).
 
 ## Anderen Wettkampf einstellen
 
@@ -21,6 +33,4 @@ In `.github/workflows/aktualisieren.yml` die Zeile `ERGEBNIS_URL:` ändern
 Oben in `index.html` im Block `CONFIG`: Wertung nach Verein oder Landesverband,
 Wartezeit nach „offiziell“, Aktualisierungsintervall, Vorläufe anzeigen.
 
-## Nach dem Wettkampf
-
-Unter *Actions → Ergebnisse aktualisieren → ⋯ → Disable workflow* abschalten.
+Die Pause zwischen zwei Durchläufen steht in der Workflow-Datei bei `PAUSE_SEKUNDEN`.
