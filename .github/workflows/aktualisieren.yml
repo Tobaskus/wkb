@@ -34,6 +34,8 @@ permissions:
 jobs:
   abholen:
     runs-on: ubuntu-latest
+    outputs:
+      geaendert: ${{ steps.vergleich.outputs.geaendert }}
     steps:
       - uses: actions/checkout@v7
 
@@ -47,13 +49,49 @@ jobs:
           cp index.html site/
           python abholen.py "$ERGEBNIS_URL" site/daten/ergebnisse.json
 
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      - id: pages
+        uses: actions/configure-pages@v6
+
+      # Nur veröffentlichen, wenn sich etwas geändert hat (GitHub Pages verträgt keine Dauer-Veröffentlichung)
+      - name: Mit veröffentlichter Seite vergleichen
+        id: vergleich
+        env:
+          BASIS: ${{ steps.pages.outputs.base_url }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, time, urllib.request
+          basis = os.environ["BASIS"].rstrip("/")
+          def online(pfad):
+              try:
+                  with urllib.request.urlopen(f"{basis}/{pfad}?t={int(time.time())}", timeout=30) as r:
+                      return r.read()
+              except Exception as e:
+                  print(f"{pfad} online nicht lesbar ({e}) – wird veröffentlicht")
+                  return None
+          def ohne_stand(b):
+              d = json.loads(b)
+              d.pop("stand", None)
+              return d
+          neu_html = open("site/index.html", "rb").read()
+          neu_json = open("site/daten/ergebnisse.json", "rb").read()
+          alt_html, alt_json = online("index.html"), online("daten/ergebnisse.json")
+          try:
+              gleich = alt_html == neu_html and alt_json is not None and ohne_stand(alt_json) == ohne_stand(neu_json)
+          except ValueError:
+              gleich = False
+          print("Keine Änderung – nichts zu veröffentlichen." if gleich else "Änderung gefunden – wird veröffentlicht.")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"geaendert={'false' if gleich else 'true'}\n")
+          EOF
+
+      - if: steps.vergleich.outputs.geaendert == 'true'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
   veroeffentlichen:
     needs: abholen
+    if: needs.abholen.outputs.geaendert == 'true'
     runs-on: ubuntu-latest
     concurrency:
       group: pages-veroeffentlichen
