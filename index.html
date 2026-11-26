@@ -13,6 +13,14 @@
 }
 /* ===================== Design: KFVL Sächsische Schweiz-Osterzgebirge ===================== */
 /* immer weiß wie leichtathletik-so.de (auch bei Geräten im Dunkelmodus) */
+/* ===================== Design: SG Freital-Weißig 1861 ===================== */
+/* weiß mit blauem Kopfbalken, Farben von sg-weissig.de */
+html:root[data-design="sg-weissig"]{
+  color-scheme:light;
+  --bg:#fff;--card:#fff;--text:#14243a;--muted:#5a6a7e;--line:#dee5ee;--row:#f4f7fb;
+  --accent:#d22323;--primaer:#0f5096;
+  --b-bg:#fff;--b-karte:#fff;--b-linie:#dee5ee;--b-text:#14243a;--b-muted:#5a6a7e;--b-titel:#0f5096;--b-akzent:#d22323;
+}
 html:root[data-design="kfvl-so"]{
   color-scheme:light;
   --bg:#fff;--card:#fff;--text:#13233a;--muted:#56677c;--line:#dfe6ee;--row:#f5f8fc;
@@ -32,6 +40,19 @@ h1{font-size:1.35rem;margin:0 0 2px;color:var(--primaer)}
 .kopf .sub{margin-bottom:0}
 .logo{flex:0 0 auto;display:block;background:#fff;border-radius:8px;padding:6px 8px;line-height:0}
 .logo img{height:60px;width:auto}
+:root[data-design="sg-weissig"] .kopf{background:var(--primaer);color:#fff;border-radius:10px;padding:12px 18px;
+  border-bottom:4px solid var(--accent)}
+:root[data-design="sg-weissig"] .kopf h1,:root[data-design="sg-weissig"] .kopf .ort{color:#fff}
+:root[data-design="sg-weissig"] .kopf .sub{color:#c9d8ea}
+:root[data-design="sg-weissig"] .logo{background:none;padding:0}
+:root[data-design="sg-weissig"] .logo img{height:76px}
+:root[data-design="sg-weissig"] .card-head h2,:root[data-design="sg-weissig"] .card th{color:var(--primaer)}
+:root[data-design="sg-weissig"] .card{box-shadow:0 1px 3px rgba(15,80,150,.07)}
+:root[data-design="sg-weissig"] .b-kopf{background:var(--primaer);border-radius:.4em;padding:1.2vh 1.5vw;border-bottom:.2em solid var(--b-akzent)}
+:root[data-design="sg-weissig"] .b-kopf h1,:root[data-design="sg-weissig"] .b-uhr{color:#fff}
+:root[data-design="sg-weissig"] .b-kopf .ort{color:#c9d8ea}
+:root[data-design="sg-weissig"] .b-kopf .logo img{height:3.4em}
+:root[data-design="sg-weissig"] .b-karte{box-shadow:0 .1em .4em rgba(15,80,150,.08)}
 :root[data-design="kfvl-so"] .kopf{border-bottom:4px solid var(--accent);padding:4px 0 14px}
 :root[data-design="kfvl-so"] .logo{padding:0}
 :root[data-design="kfvl-so"] .card{box-shadow:0 1px 3px rgba(0,63,116,.06)}
@@ -115,7 +136,8 @@ body.beamer #viewBeamer{display:block}
 .b-punkte span{width:.6em;height:.6em;border-radius:50%;background:var(--b-linie)}
 .b-punkte span.on{background:var(--b-akzent)}
 body.beamer .warnung{font-size:.8em}
-@media (max-width:560px){.kopf{flex-direction:column;align-items:flex-start;gap:8px}.logo img{height:44px}.nav a{padding:8px 9px}th,td{padding:6px 5px}td.n,th.n{width:38px}.hide-sm{display:none}}
+@media (max-width:560px){.kopf{flex-direction:column;align-items:flex-start;gap:8px}.logo img{height:44px}
+  :root[data-design="sg-weissig"] .kopf{flex-direction:row;align-items:center}:root[data-design="sg-weissig"] .logo img{height:56px}.nav a{padding:8px 9px}th,td{padding:6px 5px}td.n,th.n{width:38px}.hide-sm{display:none}}
 </style>
 </head>
 <body>
@@ -199,6 +221,11 @@ body.beamer .warnung{font-size:.8em}
   // Farben stehen oben im <style> unter :root[data-design="..."]; hier Logo, Name und Link.
   const DESIGNS = {
     'standard': {},
+    'sg-weissig': {
+      logo: 'designs/sg-weissig/logo.png',
+      name: 'SG Freital-Weißig 1861 e.V.',
+      link: 'https://www.sg-weissig.de/'
+    },
     'kfvl-so': {
       logo: 'designs/kfvl-so/logo.svg',
       name: 'Kreisfachverband Leichtathletik Sächsische Schweiz-Osterzgebirge e.V.',

@@ -43,6 +43,7 @@ Das Design wird über die Adresse gewählt – praktisch zum Einbetten auf Verei
 |---|---|
 | Standard | `https://tobaskus.github.io/wkb/` |
 | KFVL Sächsische Schweiz-Osterzgebirge | `https://tobaskus.github.io/wkb/?design=kfvl-so` |
+| SG Freital-Weißig 1861 | `https://tobaskus.github.io/wkb/?design=sg-weissig` |
 
 Auch mit Reiter, z. B. `?design=kfvl-so#beamer`.
 
