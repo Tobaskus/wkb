@@ -2,10 +2,16 @@
 """Holt Meldungen und Ergebnisse eines Wettkampfs von ergebnisse.leichtathletik.de
 und schreibt sie als kompakte JSON-Datei für den Medaillenspiegel.
 
-Aufruf:  python abholen.py <Wettkampf-URL oder -ID> <Ausgabedatei.json>
+Aufruf:  python abholen.py <Wettkampf-URL oder -ID> <Ausgabeordner>
+             [--zustand zustand.json]   Zwischenstand des letzten Laufs (nur Geändertes neu holen)
+             [--modus modus.json]       Betriebsart für den Workflow (live / ruhe / fertig)
+         Schreibt <Ausgabeordner>/ergebnisse.json und <Ausgabeordner>/version.json.
          (jede Seite des Wettkampfs geht, z.B. .../Competitions/Resultoverview/18429)
 """
+import argparse
+import hashlib
 import html
+import os
 import json
 import re
 import sys
@@ -233,56 +239,134 @@ def parse_meldungen(seite, disziplin):
 
 
 # ---------------------------------------------------------------- Ablauf
-def main(eingabe, ausgabe):
+# Wann eine Liste spätestens neu geholt wird (Sekunden). Listen mit geändertem Status im Zeitplan sofort.
+NEU_HOLEN_LAUFEND = 600    # laufende Wettbewerbe und Meldelisten
+NEU_HOLEN_FERTIG = 1800    # seit über 30 Minuten offizielle Wettbewerbe
+
+
+def betriebsart(liste, jetzt):
+    """live = heute ist Wettkampftag, ruhe = vorher, fertig = alles offiziell (seit 1 Std.) oder vorbei."""
+    heute = datetime.fromtimestamp(jetzt, ZEITZONE).date()
+    tage = set()
+    for w in liste:
+        d = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", w.get("info") or "")
+        if d:
+            tage.add(datetime(int(d.group(3)), int(d.group(2)), int(d.group(1))).date())
+    offiziell = [w.get("offiziell") for w in liste]
+    if not tage:
+        return "ruhe", "keine Termine gefunden"
+    letzter_tag = max(tage)
+    if offiziell and all(offiziell):
+        letzte = max(datetime.fromisoformat(o).timestamp() for o in offiziell)
+        if jetzt - letzte > 3600 and heute >= letzter_tag:
+            return "fertig", "alle Wettbewerbe seit über einer Stunde offiziell"
+    if (heute - letzter_tag).days > 1:
+        return "fertig", "Wettkampf ist vorbei"
+    if heute in tage:
+        # nur ab 3 Std. vor dem ersten Wettbewerb des Tages, bis der Tag seit 1 Std. komplett offiziell ist
+        beginn, offen, letzte = None, False, 0
+        for w in liste:
+            d = re.search(r"(\d{2})\.(\d{2})\.(\d{4})\s+(\d{1,2}):(\d{2})", w.get("info") or "")
+            if not d or datetime(int(d.group(3)), int(d.group(2)), int(d.group(1))).date() != heute:
+                continue
+            start = datetime(int(d.group(3)), int(d.group(2)), int(d.group(1)), int(d.group(4)), int(d.group(5)),
+                             tzinfo=ZEITZONE).timestamp()
+            beginn = start if beginn is None else min(beginn, start)
+            if w.get("offiziell"):
+                letzte = max(letzte, datetime.fromisoformat(w["offiziell"]).timestamp())
+            else:
+                offen = True
+        if beginn is not None and jetzt < beginn - 3 * 3600:
+            return "ruhe", "heute ab %s Uhr live" % datetime.fromtimestamp(beginn - 3 * 3600, ZEITZONE).strftime("%H:%M")
+        if not offen and jetzt - letzte > 3600:
+            return "ruhe", "heute alles offiziell"
+        return "live", "heute ist Wettkampftag"
+    return "ruhe", "nächster Wettkampftag: %s" % min((t for t in tage if t > heute), default=letzter_tag).strftime("%d.%m.%Y")
+
+
+def main(eingabe, ordner, zustand_datei=None, modus_datei=None):
     m = re.search(r"(\d{4,})/?$", eingabe.strip()) or re.search(r"/(\d{4,})(?:/|$)", eingabe)
     if not m:
         sys.exit("Wettkampf-ID nicht erkannt: " + eingabe)
     wid = m.group(1)
+    jetzt = time.time()
+
+    zustand = {}
+    if zustand_datei and os.path.exists(zustand_datei):
+        try:
+            with open(zustand_datei, encoding="utf-8") as f:
+                zustand = json.load(f)
+        except ValueError:
+            zustand = {}
+    if zustand.get("wid") != wid:
+        zustand = {}
+    listen_alt = zustand.get("listen", {})
 
     zeitplan = hole("%s/Competitions/Details/%s" % (BASIS, wid))
     titel = text((re.search(r'<h1[^>]*>\s*<div style="flex: 1;">(.*?)</div>', zeitplan, re.S) or [None, ""])[1])
 
-    # Klassennamen aus der Ergebnisübersicht (falls schon vorhanden)
-    namen = {}
-    try:
-        ov = hole("%s/Competitions/Resultoverview/%s" % (BASIS, wid))
-        menue = re.search(r'id="EventMenuHeader".*?</ul>', ov, re.S)
-        for code, label in re.findall(r'<a href="#([^"]+)">(.*?)</a>', menue.group(0) if menue else "", re.S):
-            namen[code] = text(label)
-    except Exception:  # noqa: BLE001
-        pass
+    # Klassennamen aus der Ergebnisübersicht (falls schon vorhanden; höchstens stündlich neu)
+    namen = zustand.get("namen", {})
+    if not namen or jetzt - zustand.get("namen_zeit", 0) > 3600:
+        try:
+            ov = hole("%s/Competitions/Resultoverview/%s" % (BASIS, wid))
+            menue = re.search(r'id="EventMenuHeader".*?</ul>', ov, re.S)
+            namen = {}
+            for code, label in re.findall(r'<a href="#([^"]+)">(.*?)</a>', menue.group(0) if menue else "", re.S):
+                namen[code] = text(label)
+            zustand["namen_zeit"] = jetzt
+        except Exception:  # noqa: BLE001
+            pass
 
-    # Alle Runden aus dem Zeitplan
+    # Alle Runden aus dem Zeitplan (mit Status)
     runden = []
     for r in re.finditer(r'<a href=(/Competitions/CurrentList/(\d+)/\d+)>\s*<div class="blockround".*?class="roundtime">(.*?)</div>'
                          r'.*?class="mainname">(.*?)</div>.*?class="typename">(.*?)</div>', zeitplan, re.S):
         lid = r.group(2)
         if any(x["id"] == lid for x in runden):
             continue
+        st = re.search(r'class="roundstate ([^"]*)"', zeitplan[r.end():r.end() + 600])
         haupt = text(r.group(4))
         runde = re.sub(r"\s*\(.*?\)\s*$", "", text(r.group(5)))
         runden.append({"id": lid, "zeit": text(r.group(3)), "haupt": haupt,
-                       "name": (haupt + " " + runde).strip(), "url": BASIS + r.group(1)})
+                       "name": (haupt + " " + runde).strip(), "url": BASIS + r.group(1),
+                       "_status": st.group(1) if st else ""})
 
     beispiel_codes = ["M", "W", "X"] + ["%s%sU%d" % (g, k, n) for g in "MW" for k in ("J", "K") for n in range(8, 24, 2)] \
         + ["%s%d" % (g, n) for g in "MW" for n in range(6, 16)]
     alle_namen = sorted(set(namen.values()) | {klassen_name(c) for c in beispiel_codes}, key=len, reverse=True)
 
+    def muss_holen(w):
+        a = listen_alt.get(w["id"])
+        if not a or a.get("status") != w["_status"] or a.get("fehler"):
+            return True
+        off = offiziell_seit(a.get("info", ""))
+        fertig = off and datetime.fromisoformat(off).timestamp() < jetzt - 1800
+        grenze = (NEU_HOLEN_FERTIG if fertig else NEU_HOLEN_LAUFEND) - (int(w["id"]) % 5) * 60  # verteilt über mehrere Läufe
+        return jetzt - a.get("geholt", 0) >= grenze
+
     def lade(w):
         w["disziplin"], w["runde"] = disziplin_und_runde(w["name"], alle_namen)
         w["vorlauf"] = bool(VORLAUF.search(w["runde"] or w["name"]))
-        try:
-            info, bloecke = parse_ergebnisse(hole(w["url"]), w["disziplin"])
-            w["info"] = info
-            w["offiziell"] = offiziell_seit(info)
-            w["klassen"], w["gesamt"] = ergebnisse_aufbereiten(bloecke)
-        except Exception as e:  # noqa: BLE001
-            w.update(info="", offiziell=None, klassen={}, gesamt=None, fehler=str(e))
-        try:
-            w["meldungen"] = parse_meldungen(hole("%s/Competitions/RegisterList/%s/%s" % (BASIS, w["id"], wid)), w["disziplin"])
-        except Exception as e:  # noqa: BLE001
-            w["meldungen"] = []
-            w["fehler"] = str(e)
+        a = listen_alt.get(w["id"])
+        if not muss_holen(w):
+            w.update(info=a["info"], klassen=a["klassen"], gesamt=a["gesamt"], meldungen=a["meldungen"])
+            w["_geholt"], w["_neu"] = a["geholt"], False
+        else:
+            w["_geholt"], w["_neu"] = jetzt, True
+            try:
+                info, bloecke = parse_ergebnisse(hole(w["url"]), w["disziplin"])
+                w["info"] = info
+                w["klassen"], w["gesamt"] = ergebnisse_aufbereiten(bloecke)
+            except Exception as e:  # noqa: BLE001
+                w.update(info=(a or {}).get("info", ""), klassen=(a or {}).get("klassen", {}), gesamt=(a or {}).get("gesamt"),
+                         fehler=str(e))
+            try:
+                w["meldungen"] = parse_meldungen(hole("%s/Competitions/RegisterList/%s/%s" % (BASIS, w["id"], wid)), w["disziplin"])
+            except Exception as e:  # noqa: BLE001
+                w["meldungen"] = (a or {}).get("meldungen", [])
+                w["fehler"] = str(e)
+        w["offiziell"] = offiziell_seit(w["info"])
         return w
 
     with ThreadPoolExecutor(max_workers=6) as ex:
@@ -299,20 +383,50 @@ def main(eingabe, ausgabe):
         codes.update(e["klasse"] for e in w["meldungen"] if e["klasse"])
     klassen = [{"code": c, "name": namen.get(c) or klassen_name(c)} for c in sorted(codes, key=klassen_sortierung)]
 
+    # Zwischenstand für den nächsten Lauf
+    zustand_neu = {"wid": wid, "namen": namen, "namen_zeit": zustand.get("namen_zeit", 0), "listen": {}}
+    for w in liste:
+        zustand_neu["listen"][w["id"]] = {"status": w["_status"], "geholt": w["_geholt"], "fehler": bool(w.get("fehler")),
+                                          "info": w["info"], "klassen": w["klassen"], "gesamt": w["gesamt"],
+                                          "meldungen": w["meldungen"]}
+    geholt = sum(1 for w in liste if w["_neu"])
+    for w in liste:
+        for k in ("_status", "_geholt", "_neu"):
+            w.pop(k, None)
+
     daten = {
         "wettkampf": titel,
         "quelle": "%s/Competitions/Details/%s" % (BASIS, wid),
-        "stand": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "stand": None,
         "klassen": klassen,
         "wettbewerbe": liste,
     }
-    with open(ausgabe, "w", encoding="utf-8") as f:
+    # "stand" = Zeitpunkt der letzten inhaltlichen Änderung
+    inhalt = json.dumps(daten, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    version = hashlib.sha1(inhalt.encode("utf-8")).hexdigest()[:16]
+    jetzt_iso = datetime.fromtimestamp(int(jetzt), timezone.utc).isoformat(timespec="seconds")
+    daten["stand"] = zustand["stand"] if zustand.get("version") == version and zustand.get("stand") else jetzt_iso
+    zustand_neu.update(version=version, stand=daten["stand"])
+
+    modus, grund = betriebsart(liste, jetzt)
+    os.makedirs(ordner, exist_ok=True)
+    with open(os.path.join(ordner, "ergebnisse.json"), "w", encoding="utf-8") as f:
         json.dump(daten, f, ensure_ascii=False, separators=(",", ":"))
+    with open(os.path.join(ordner, "version.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": version, "stand": daten["stand"], "geprueft": jetzt_iso, "modus": modus}, f)
+    if zustand_datei:
+        with open(zustand_datei, "w", encoding="utf-8") as f:
+            json.dump(zustand_neu, f, ensure_ascii=False, separators=(",", ":"))
+    if modus_datei:
+        with open(modus_datei, "w", encoding="utf-8") as f:
+            json.dump({"modus": modus, "grund": grund}, f, ensure_ascii=False)
 
     n_erg = sum(len(v) for w in liste for v in w["klassen"].values())
     n_meld = sum(len(w["meldungen"]) for w in liste if w["meldungenZeigen"])
     fehler = [w["name"] for w in liste if w.get("fehler")]
-    print("%s: %d Wettbewerbe, %d Meldungen, %d Ergebniszeilen, %d Fehler" % (titel, len(liste), n_meld, n_erg, len(fehler)))
+    print("%s: %d Wettbewerbe (%d neu geholt), %d Meldungen, %d Ergebniszeilen, %d Fehler"
+          % (titel, len(liste), geholt, n_meld, n_erg, len(fehler)))
+    print("Betriebsart: %s (%s)" % (modus, grund))
     for f in fehler:
         print("  Fehler bei:", f)
     if not liste:
@@ -320,6 +434,10 @@ def main(eingabe, ausgabe):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit(__doc__)
-    main(sys.argv[1], sys.argv[2])
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("wettkampf")
+    ap.add_argument("ordner")
+    ap.add_argument("--zustand")
+    ap.add_argument("--modus")
+    a = ap.parse_args()
+    main(a.wettkampf, a.ordner, a.zustand, a.modus)

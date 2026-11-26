@@ -54,20 +54,58 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
 .det div{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .det small{color:var(--muted)}
 .empty{color:var(--muted);padding:14px 0}
+.person{all:unset;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.person:hover{color:var(--accent)}
+.person:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.zuruecksetzen{all:unset;cursor:pointer;font-size:.82rem;color:var(--accent);margin:-6px 0 12px;display:inline-block}
+.warnung{background:#fff4d6;color:#6b4e00;border:1px solid #f0d58a;border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:.9rem}
+.fuss{margin-top:18px;font-size:.82rem;color:var(--muted)}
+.fuss a{color:var(--muted)}
+/* Beamer */
+body.beamer{background:#0f1215;color:#f1f3f5;font-size:clamp(16px,1.6vw,30px)}
+body.beamer .wrap{max-width:none;padding:2vh 3vw}
+body.beamer .normal{display:none}
+#viewBeamer{display:none}
+body.beamer #viewBeamer{display:block}
+.b-kopf{display:flex;justify-content:space-between;align-items:baseline;gap:2vw;margin-bottom:2vh}
+.b-kopf h1{font-size:2.1em;margin:0;color:#fff}
+.b-kopf .ort{font-size:1.1em;color:#aab2bb;font-weight:600}
+.b-uhr{font-size:2.1em;font-weight:700;font-variant-numeric:tabular-nums}
+.b-titel{font-size:1.35em;font-weight:700;margin:0 0 1.5vh;color:#ffd75e}
+.b-tab{width:100%;border-collapse:collapse}
+.b-tab td,.b-tab th{border-bottom:1px solid #2a3038;padding:.45em .5em;font-size:1em}
+.b-tab th{color:#8f99a3;font-size:.75em}
+.b-tab td.n,.b-tab th.n{text-align:center;width:4em}
+.b-tab .m{width:1.5em;height:1.5em;line-height:1.5em;font-size:.75em}
+.b-raster{display:grid;grid-template-columns:repeat(auto-fit,minmax(32vw,1fr));gap:1.6vh 2vw}
+.b-karte{background:#181d22;border:1px solid #2a3038;border-radius:.5em;padding:.6em .9em}
+.b-karte h2{font-size:1.1em;margin:0 0 .2em;color:#fff}
+.b-karte small{color:#8f99a3}
+.b-karte table{width:100%;border-collapse:collapse;margin-top:.3em}
+.b-karte td{padding:.2em .3em;border:0;white-space:normal;line-height:1.25}
+.b-karte h2 small{font-weight:400;font-size:.75em}
+.b-karte td.r{text-align:right;font-weight:700;white-space:nowrap}
+.b-punkte{display:flex;gap:.5em;justify-content:center;margin-top:2vh}
+.b-punkte span{width:.6em;height:.6em;border-radius:50%;background:#39414a}
+.b-punkte span.on{background:#ffd75e}
+body.beamer .warnung{font-size:.8em}
 @media (max-width:560px){.nav a{padding:8px 9px}th,td{padding:6px 5px}td.n,th.n{width:38px}.hide-sm{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="normal">
   <h1 id="title">Medaillenspiegel</h1>
   <div class="ort" id="datumOrt"></div>
   <div class="sub" id="stand">Lade Ergebnisse…</div>
-  <nav class="nav">
+  </div>
+  <div class="warnung" id="warnung" hidden></div>
+  <nav class="nav normal">
     <a href="#medaillen" id="navMed">Medaillenspiegel</a>
     <a href="#ergebnisse" id="navErg">Ergebnisse</a>
     <a href="#meldungen" id="navMeld">Meldungen</a>
   </nav>
-  <section id="viewMed">
+  <section id="viewMed" class="normal">
     <div class="card">
       <div class="tbl-wrap">
         <table>
@@ -83,15 +121,22 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
       </div>
     </div>
   </section>
-  <section id="viewErg" hidden>
+  <section id="viewErg" class="normal" hidden>
     <div class="filters">
       <div><label for="selKlasse">Altersklasse</label><select id="selKlasse"></select></div>
       <div><label for="selDisz">Disziplin</label><select id="selDisz"></select></div>
       <div><label for="selVerein">Verein</label><select id="selVerein"></select></div>
       <div><label for="suche">Name</label><input id="suche" type="search" placeholder="z. B. Wegner oder Till Wegner" autocomplete="off"></div>
     </div>
+    <button type="button" class="zuruecksetzen" id="zuruecksetzen" hidden>Alle Filter zurücksetzen</button>
     <div id="ergListe"></div>
   </section>
+  <section id="viewBeamer">
+    <div class="b-kopf"><div><h1 id="bTitel"></h1><div class="ort" id="bOrt"></div></div><div class="b-uhr" id="bUhr"></div></div>
+    <div id="bInhalt"></div>
+    <div class="b-punkte" id="bPunkte"></div>
+  </section>
+  <div class="fuss normal"><a href="#beamer">Beamer-Ansicht</a> (Vollbild: Doppelklick, Beenden: Esc)</div>
 </div>
 
 <script>
@@ -99,8 +144,10 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
   // ===================== EINSTELLUNGEN =====================
   // Welcher Wettkampf abgeholt wird, steht in .github/workflows/aktualisieren.yml (ERGEBNIS_URL).
   const CONFIG = {
-    // Von GitHub aufbereitete Ergebnisse (liegt neben dieser Datei)
+    // Von GitHub aufbereitete Ergebnisse (liegen neben dieser Datei)
     quelle: 'daten/ergebnisse.json',
+    // Kleine Datei, die nur sagt, ob es neue Daten gibt (spart Datenvolumen)
+    versionQuelle: 'daten/version.json',
     // Wie oft der Browser nachschaut, in Sekunden (0 = aus)
     interval: 60,
     // Wertung: 'club' = nach Verein, 'lv' = nach Landesverband
@@ -108,7 +155,12 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
     // Vorläufe auf der Ergebnisseite anzeigen? (zählen nie für Medaillen)
     vorlaeufeZeigen: true,
     // Ergebnisse erst übernehmen, wenn sie seit so vielen Minuten offiziell sind
-    wartezeitMinuten: 5
+    wartezeitMinuten: 5,
+    // Hinweis, wenn am Wettkampftag so viele Minuten keine Aktualisierung kam
+    veraltetMinuten: 15,
+    // Beamer: Sekunden pro Ansicht, Anzahl neuester Ergebnisse
+    beamerSekunden: 20,
+    beamerErgebnisse: 6
   };
   // =========================================================
 
@@ -278,11 +330,12 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
                            : meldeKarte(w, titel, eintraege, kommentar, gemeinsam, gesamtzahl);
     }).join('') || `<div class="empty">${suche.trim() ? 'Kein Treffer für „' + esc(suche.trim()) + '“ in der aktuellen Auswahl.'
       : verein !== ALLE ? 'Nichts für diesen Verein in der aktuellen Auswahl.' : A.leer}</div>`;
+    $('zuruecksetzen').hidden = kl === ALLE && di === ALLE && verein === ALLE && !suche.trim();
   }
 
   const personZelle = e => e.team
     ? `${esc(e.verein)}${e.mitglieder ? `<br><small>${esc(e.mitglieder)}</small>` : ''}`
-    : `${esc(e.name)}${e.jg ? ` <small>(${esc(e.jg)})</small>` : ''}<br><small>${esc(e.verein)}</small>`;
+    : `<button type="button" class="person" data-name="${esc(e.name)}" data-verein="${esc(e.verein)}" title="Alle Ergebnisse von ${esc(e.name)}">${esc(e.name)}</button>${e.jg ? ` <small>(${esc(e.jg)})</small>` : ''}<br><small>${esc(e.verein)}</small>`;
 
   function kartenRahmen(titel, tag, meta, kommentar, kopf, rows) {
     return `<div class="card">
@@ -326,12 +379,57 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
     return { name: m[2], datum, ort: m[3] || '' };
   }
 
-  function view() { return location.hash === '#ergebnisse' ? 'erg' : location.hash === '#meldungen' ? 'meld' : 'med'; }
+  function view() {
+    return { '#ergebnisse': 'erg', '#meldungen': 'meld', '#beamer': 'beamer' }[location.hash] || 'med';
+  }
+
+  // ---------- Beamer: Medaillenspiegel und neueste Ergebnisse im Wechsel ----------
+  let beamerSeite = 0, beamerTimer = null;
+  function renderBeamer() {
+    const k = kopf(data.wettkampf);
+    $('bTitel').textContent = k.name;
+    $('bOrt').textContent = [k.datum, k.ort].filter(Boolean).join(' · ');
+    const seiten = [beamerMedaillen, beamerNeueste];
+    beamerSeite %= seiten.length;
+    $('bInhalt').innerHTML = seiten[beamerSeite]();
+    $('bPunkte').innerHTML = seiten.map((_, i) => `<span class="${i === beamerSeite ? 'on' : ''}"></span>`).join('');
+    // nur so viele Zeilen/Karten zeigen, wie auf den Bildschirm passen
+    const zuHoch = () => document.documentElement.scrollHeight > window.innerHeight + 1;
+    const teile = () => $('bInhalt').querySelectorAll('.b-tab tbody tr, .b-raster > .b-karte');
+    while (zuHoch() && teile().length > 1) teile()[teile().length - 1].remove();
+  }
+  function beamerMedaillen() {
+    const rows = spiegel().slice(0, 20);
+    return `<div class="b-titel">Medaillenspiegel</div>` + (rows.length ? `<table class="b-tab"><thead><tr><th class="n">#</th><th>${CONFIG.mode === 'lv' ? 'Landesverband' : 'Verein'}</th>
+      <th class="n">${medal(1).replace('>1<', '>G<')}</th><th class="n">${medal(2).replace('>2<', '>S<')}</th><th class="n">${medal(3).replace('>3<', '>B<')}</th><th class="n">Σ</th></tr></thead><tbody>${
+      rows.map(r => `<tr><td class="n">${r.pos}</td><td>${esc(r.name)}</td><td class="n"><b>${r.g}</b></td><td class="n">${r.s}</td><td class="n">${r.b}</td><td class="n"><b>${r.g + r.s + r.b}</b></td></tr>`).join('')
+    }</tbody></table>` : '<div class="empty">Noch keine Medaillen vergeben.</div>');
+  }
+  function beamerNeueste() {
+    const karten = [];
+    data.wettbewerbe.filter(w => freigegeben(w) && !w.vorlauf)
+      .sort((a, b) => new Date(b.offiziell) - new Date(a.offiziell))
+      .forEach(w => klassenCodes(w).forEach(c => karten.push({ w, c })));
+    const neu = karten.slice(0, Math.max(CONFIG.beamerErgebnisse, 1));
+    return `<div class="b-titel">Neueste Ergebnisse</div>` + (neu.length ? `<div class="b-raster">${neu.map(({ w, c }) => {
+      const zeilen = w.klassen[c].filter(e => e.rang && e.rang <= 3).slice(0, 4);
+      const uhr = new Date(w.offiziell).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      return `<div class="b-karte"><h2>${esc(titelKlasse(w, c))} <small>· offiziell ${uhr} Uhr</small></h2><table>${
+        zeilen.map(e => `<tr><td style="width:2em">${medal(e.rang)}</td><td>${esc(e.team ? e.verein : e.name)}${e.team ? '' : ` <small>· ${esc(e.verein)}</small>`}</td><td class="r">${esc(e.ergebnis)}</td></tr>`).join('')
+      }</table></div>`;
+    }).join('')}</div>` : '<div class="empty">Noch keine Ergebnisse.</div>');
+  }
+  function beamerUhr() { $('bUhr').textContent = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
 
   function render() {
     const v = view();
+    document.body.classList.toggle('beamer', v === 'beamer');
+    if (v === 'beamer' && !beamerTimer) {
+      beamerUhr();
+      beamerTimer = setInterval(() => { beamerSeite++; if (data) renderBeamer(); beamerUhr(); }, CONFIG.beamerSekunden * 1000);
+    } else if (v !== 'beamer' && beamerTimer) { clearInterval(beamerTimer); beamerTimer = null; }
     $('viewMed').hidden = v !== 'med';
-    $('viewErg').hidden = v === 'med';
+    $('viewErg').hidden = v !== 'erg' && v !== 'meld';
     $('navMed').classList.toggle('on', v === 'med');
     $('navErg').classList.toggle('on', v === 'erg');
     $('navMeld').classList.toggle('on', v === 'meld');
@@ -339,8 +437,8 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
     const k = kopf(data.wettkampf);
     $('title').textContent = k.name;
     $('datumOrt').textContent = [k.datum, k.ort].filter(Boolean).join(' · ');
-    document.title = SEITEN[v] + ' – ' + k.name;
-    if (v === 'med') renderMedaillen(); else renderListe(v);
+    document.title = (SEITEN[v] || 'Beamer') + ' – ' + k.name;
+    if (v === 'med') renderMedaillen(); else if (v === 'beamer') renderBeamer(); else renderListe(v);
   }
 
   async function load() {
@@ -352,9 +450,20 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
       return;
     }
     try {
-      const res = await fetch(CONFIG.quelle + '?t=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      data = await res.json();
+      let v = null;
+      try {
+        const rv = await fetch(CONFIG.versionQuelle + '?t=' + Date.now(), { cache: 'no-store' });
+        if (rv.ok) v = await rv.json();
+      } catch (e) { /* ältere Veröffentlichung ohne version.json */ }
+      if (!v || v.version !== geladeneVersion) {
+        // eindeutige Adresse je Version: darf vom Browser zwischengespeichert werden
+        const res = await fetch(CONFIG.quelle + (v ? '?v=' + v.version : '?t=' + Date.now()), v ? {} : { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+        geladeneVersion = v ? v.version : null;
+      }
+      versionInfo = v;
+      warnungPruefen();
       render();
       const t = new Date(data.stand);
       $('stand').textContent = 'Letzte Änderung: ' + t.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' Uhr';
@@ -364,16 +473,45 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
     }
   }
 
+  let geladeneVersion = null, versionInfo = null;
+  // Hinweis, wenn am Wettkampftag länger nichts aktualisiert wurde (Schleife bei GitHub abgerissen?)
+  function warnungPruefen() {
+    const v = versionInfo;
+    const min = v && v.geprueft ? Math.floor((Date.now() - new Date(v.geprueft).getTime()) / 60000) : 0;
+    const zeigen = !!v && v.modus === 'live' && min >= CONFIG.veraltetMinuten;
+    $('warnung').hidden = !zeigen;
+    if (zeigen) $('warnung').textContent = `Achtung: Die Daten wurden seit ${min} Minuten nicht mehr aktualisiert. Neue Ergebnisse fehlen möglicherweise.`;
+  }
+
   async function loop() {
     await load();
     if (CONFIG.interval > 0 && !window.EINGEBETTETE_DATEN) setTimeout(loop, CONFIG.interval * 1000);
   }
 
   window.addEventListener('hashchange', render);
+  window.addEventListener('resize', () => { if (view() === 'beamer' && data) renderBeamer(); });
   $('selKlasse').onchange = e => { klasse = e.target.value; store.set('klasse', klasse); render(); };
   $('selDisz').onchange = e => { disziplin = e.target.value; store.set('disziplin', disziplin); render(); };
   $('suche').oninput = e => { suche = e.target.value; render(); };
   $('selVerein').onchange = e => { verein = e.target.value; store.set('verein', verein); render(); };
+  $('ergListe').onclick = e => {
+    const b = e.target.closest('button.person'); if (!b) return;
+    klasse = ALLE; disziplin = ALLE; verein = b.dataset.verein || ALLE; suche = b.dataset.name;
+    store.set('klasse', klasse); store.set('disziplin', disziplin); store.set('verein', verein);
+    $('suche').value = suche;
+    render();
+    $('viewErg').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  $('zuruecksetzen').onclick = () => {
+    klasse = disziplin = verein = ALLE; suche = ''; $('suche').value = '';
+    store.set('klasse', klasse); store.set('disziplin', disziplin); store.set('verein', verein);
+    render();
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && view() === 'beamer') location.hash = '#medaillen'; });
+  document.addEventListener('dblclick', () => {
+    if (view() !== 'beamer') return;
+    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {});
+  });
   $('medBody').onclick = e => {
     const tr = e.target.closest('tr.main'); if (!tr) return;
     const k = tr.dataset.k; open.has(k) ? open.delete(k) : open.add(k); render();

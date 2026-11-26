@@ -1,36 +1,48 @@
 # Medaillenspiegel, Ergebnisse & Meldungen
 
 Live-Ansicht für einen Wettkampf von [ergebnisse.leichtathletik.de](https://ergebnisse.leichtathletik.de):
-Medaillenspiegel (je Altersklasse), Ergebnisse und Meldungen mit Filtern für Altersklasse, Disziplin, Verein und Name.
+Medaillenspiegel (je Altersklasse), Ergebnisse und Meldungen mit Filtern für Altersklasse, Disziplin, Verein und Name,
+dazu eine Beamer-Ansicht für die Halle.
 
-## So funktioniert es
+## Neuen Wettkampf einstellen
 
-- `.github/workflows/aktualisieren.yml` holt mit `abholen.py` Zeitplan, Meldelisten und Ergebnislisten ab
-  und veröffentlicht `index.html` + `daten/ergebnisse.json` über GitHub Pages.
-- Die Seite lädt die Daten jede Minute neu. Ergebnisse erscheinen erst, wenn sie seit
-  mindestens 5 Minuten offiziell sind.
+In `.github/workflows/aktualisieren.yml` die Zeile `ERGEBNIS_URL:` ändern (jede Seite des Wettkampfs oder nur die
+Wettkampf-ID) und speichern. **Das ist alles** – der Rest läuft automatisch.
 
-## Live-Modus am Wettkampftag
+## Automatischer Betrieb
 
-GitHub startet zeitgesteuerte Läufe sehr unzuverlässig. Deshalb am Wettkampftag einmal von Hand starten:
+Der Workflow startet sich nach jedem Durchlauf selbst neu. Die Pause richtet sich nach dem Wettkampf:
 
-1. *Actions → Ergebnisse aktualisieren → Run workflow*
-2. Bei „Wie viele Stunden automatisch aktualisieren?“ die Dauer eintragen (Standard 12)
-3. *Run workflow*
+| Betriebsart | Wann | Durchläufe |
+|---|---|---|
+| **ruhe** | vor dem Wettkampf, abends zwischen zwei Wettkampftagen | alle 30 Minuten (Meldungen aktuell halten) |
+| **live** | am Wettkampftag ab 3 Std. vor dem ersten Wettbewerb | etwa alle 1–2 Minuten |
+| **fertig** | alles seit einer Stunde offiziell oder Wettkampf vorbei | Schleife endet |
 
-Der Workflow startet sich danach nach jedem Durchlauf selbst neu (etwa alle 2–3 Minuten), bis die Zeit um ist.
+- Es werden nur Listen neu geholt, deren Status sich im Zeitplan geändert hat (z. B. „offiziell“);
+  laufende Wettbewerbe zusätzlich alle 10 Minuten, fertige alle 30 Minuten.
+- Veröffentlicht wird nur bei Änderungen – am Wettkampftag zusätzlich alle 9 Minuten ein Lebenszeichen.
+  Bleibt es länger als 15 Minuten aus, zeigt die Seite einen Hinweis.
+- Falls die Schleife doch abreißt: *Actions → Ergebnisse aktualisieren → Run workflow*
+  (stündlich versucht GitHub das auch selbst, leider unzuverlässig).
+- Ganz anhalten: *Actions → Ergebnisse aktualisieren → ⋯ → Disable workflow*.
 
-**Vorzeitig stoppen:** *Actions → Ergebnisse aktualisieren → ⋯ → Disable workflow*
-(vor dem nächsten Wettkampf wieder *Enable workflow*).
+## Seite
 
-## Anderen Wettkampf einstellen
+- `#medaillen`, `#ergebnisse`, `#meldungen` – die drei Reiter
+- Klick auf einen Namen zeigt alle Ergebnisse bzw. Meldungen dieser Person
+- `#beamer` – Vollbild-Ansicht für die Halle: Medaillenspiegel und neueste Ergebnisse im Wechsel
+  (Doppelklick = Vollbild, Esc = zurück)
+- Die Seite fragt jede Minute nur eine kleine Datei (`daten/version.json`) ab und lädt die Ergebnisse nur bei Änderungen.
 
-In `.github/workflows/aktualisieren.yml` die Zeile `ERGEBNIS_URL:` ändern
-(jede Seite des Wettkampfs oder nur die Wettkampf-ID).
+## Einstellungen
 
-## Weitere Einstellungen
+- Oben in `index.html` im Block `CONFIG`: Wertung nach Verein oder Landesverband, Wartezeit nach „offiziell“ (5 Min.),
+  Abfrageintervall, Hinweis bei veralteten Daten, Beamer-Wechselzeit.
+- Oben in `.github/workflows/aktualisieren.yml`: Pausen (`PAUSE_LIVE`, `PAUSE_RUHE`) und Lebenszeichen.
 
-Oben in `index.html` im Block `CONFIG`: Wertung nach Verein oder Landesverband,
-Wartezeit nach „offiziell“, Aktualisierungsintervall, Vorläufe anzeigen.
+## Dateien
 
-Die Pause zwischen zwei Durchläufen steht in der Workflow-Datei bei `PAUSE_SEKUNDEN`.
+- `abholen.py` – holt und bereitet die Daten auf (`python abholen.py <ID> <ordner> --zustand zustand.json --modus modus.json`)
+- `index.html` – die Seite
+- `.github/workflows/aktualisieren.yml` – der automatische Betrieb

@@ -1,30 +1,27 @@
 name: Ergebnisse aktualisieren
 
-# LIVE-MODUS am Wettkampftag:
-#   Actions -> "Ergebnisse aktualisieren" -> "Run workflow" -> Stunden eintragen -> "Run workflow".
-#   Der Workflow startet sich dann nach jedem Durchlauf selbst neu (etwa alle 2-3 Minuten),
-#   bis die Stunden um sind. Vorzeitig stoppen: Actions -> "Ergebnisse aktualisieren" -> "..." -> "Disable workflow"
-#   (danach wieder "Enable workflow", sonst läuft er auch beim nächsten Mal nicht).
+# AUTOMATISCHER BETRIEB
+#   Der Workflow startet sich nach jedem Durchlauf selbst neu. Die Pause richtet sich nach dem Wettkampf:
+#     live   – Wettkampftag (ab 3 Std. vor dem ersten Wettbewerb): etwa alle 1–2 Minuten
+#     ruhe   – vor dem Wettkampf / abends zwischen zwei Wettkampftagen: alle 30 Minuten (Meldungen aktuell halten)
+#     fertig – alles seit einer Stunde offiziell oder Wettkampf vorbei: Schleife endet
+#   Neuen Wettkampf einstellen = unten ERGEBNIS_URL ändern und speichern (Commit) – das startet alles neu.
+#   Von Hand (neu) starten: Actions -> "Ergebnisse aktualisieren" -> "Run workflow".
+#   Ganz anhalten: Actions -> "Ergebnisse aktualisieren" -> "..." -> "Disable workflow".
 on:
-  workflow_dispatch:
-    inputs:
-      stunden:
-        description: "Wie viele Stunden automatisch aktualisieren? (0 = nur einmal)"
-        default: "12"
-      ende:
-        description: "(intern – bitte leer lassen)"
-        default: ""
   push:
     branches: [main]
+  workflow_dispatch:
   schedule:
-    # Reserve: GitHub startet zeitgesteuerte Läufe leider sehr unzuverlässig
-    - cron: "2-59/5 * * * *"
+    # Reserve: startet die Schleife neu, falls sie abgerissen ist (GitHub führt das leider unzuverlässig aus)
+    - cron: "17 * * * *"
 
 env:
-  # Hier den Wettkampf eintragen:
+  # Hier den Wettkampf eintragen (jede Seite des Wettkampfs oder nur die ID):
   ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/21235
-  # Pause zwischen zwei Durchläufen im Live-Modus (Sekunden)
-  PAUSE_SEKUNDEN: 60
+  PAUSE_LIVE: 45          # Sekunden zwischen zwei Durchläufen am Wettkampftag
+  PAUSE_RUHE: 1800        # Sekunden zwischen zwei Durchläufen vor dem Wettkampf
+  LEBENSZEICHEN: 540      # am Wettkampftag spätestens nach so vielen Sekunden veröffentlichen (für den Hinweis "veraltet")
 
 permissions:
   contents: read
@@ -36,6 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       geaendert: ${{ steps.vergleich.outputs.geaendert }}
+      modus: ${{ steps.abholen.outputs.modus }}
     steps:
       - uses: actions/checkout@v7
 
@@ -43,45 +41,67 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Zwischenstand des letzten Laufs: nur geänderte Listen werden neu geholt
+      - uses: actions/cache/restore@v6
+        with:
+          path: zustand.json
+          key: zustand-${{ github.run_id }}
+          restore-keys: zustand-
+
       - name: Ergebnisse abholen
+        id: abholen
         run: |
           mkdir -p site/daten
           cp index.html site/
-          python abholen.py "$ERGEBNIS_URL" site/daten/ergebnisse.json
+          python abholen.py "$ERGEBNIS_URL" site/daten --zustand zustand.json --modus modus.json
+          echo "modus=$(python3 -c 'import json; print(json.load(open("modus.json"))["modus"])')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/save@v6
+        with:
+          path: zustand.json
+          key: zustand-${{ github.run_id }}-${{ github.run_attempt }}
 
       - id: pages
         uses: actions/configure-pages@v6
 
-      # Nur veröffentlichen, wenn sich etwas geändert hat (GitHub Pages verträgt keine Dauer-Veröffentlichung)
+      # Nur veröffentlichen, wenn sich etwas geändert hat – am Wettkampftag zusätzlich regelmäßig als Lebenszeichen
       - name: Mit veröffentlichter Seite vergleichen
         id: vergleich
         env:
           BASIS: ${{ steps.pages.outputs.base_url }}
+          MODUS: ${{ steps.abholen.outputs.modus }}
         run: |
           python3 - <<'EOF'
           import json, os, time, urllib.request
+          from datetime import datetime
           basis = os.environ["BASIS"].rstrip("/")
           def online(pfad):
               try:
                   with urllib.request.urlopen(f"{basis}/{pfad}?t={int(time.time())}", timeout=30) as r:
                       return r.read()
               except Exception as e:
-                  print(f"{pfad} online nicht lesbar ({e}) – wird veröffentlicht")
+                  print(f"{pfad} online nicht lesbar ({e})")
                   return None
-          def ohne_stand(b):
-              d = json.loads(b)
-              d.pop("stand", None)
-              return d
           neu_html = open("site/index.html", "rb").read()
-          neu_json = open("site/daten/ergebnisse.json", "rb").read()
-          alt_html, alt_json = online("index.html"), online("daten/ergebnisse.json")
+          neu_ver = json.load(open("site/daten/version.json"))
+          alt_html, alt_ver = online("index.html"), online("daten/version.json")
           try:
-              gleich = alt_html == neu_html and alt_json is not None and ohne_stand(alt_json) == ohne_stand(neu_json)
+              alt_ver = json.loads(alt_ver) if alt_ver else None
           except ValueError:
-              gleich = False
-          print("Keine Änderung – nichts zu veröffentlichen." if gleich else "Änderung gefunden – wird veröffentlicht.")
+              alt_ver = None
+          if alt_html != neu_html or not alt_ver:
+              grund = "Seite geändert oder noch nicht veröffentlicht"
+          elif alt_ver.get("version") != neu_ver["version"]:
+              grund = "Daten geändert"
+          elif alt_ver.get("modus") != neu_ver["modus"]:
+              grund = "Betriebsart geändert"
+          elif os.environ["MODUS"] == "live" and time.time() - datetime.fromisoformat(alt_ver["geprueft"]).timestamp() > int(os.environ["LEBENSZEICHEN"]):
+              grund = "Lebenszeichen"
+          else:
+              grund = ""
+          print(f"Veröffentlichen: {grund}" if grund else "Keine Änderung – nichts zu veröffentlichen.")
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"geaendert={'false' if gleich else 'true'}\n")
+              f.write(f"geaendert={'true' if grund else 'false'}\n")
           EOF
 
       - if: steps.vergleich.outputs.geaendert == 'true'
@@ -103,10 +123,10 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v5
 
-  # Live-Modus: nächsten Durchlauf starten (auch wenn dieser fehlgeschlagen ist)
+  # Nächsten Durchlauf starten (auch wenn dieser fehlgeschlagen ist)
   weiter:
     needs: [abholen, veroeffentlichen]
-    if: always() && github.event_name == 'workflow_dispatch'
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -114,24 +134,23 @@ jobs:
       - name: Nächsten Durchlauf starten
         env:
           GH_TOKEN: ${{ github.token }}
-          STUNDEN: ${{ inputs.stunden }}
-          ENDE: ${{ inputs.ende }}
+          MODUS: ${{ needs.abholen.outputs.modus }}
         run: |
-          jetzt=$(date +%s)
-          if [ -z "$ENDE" ]; then
-            case "$STUNDEN" in ''|0|*[!0-9.]*) echo "Nur ein Durchlauf gewünscht."; exit 0;; esac
-            ENDE=$(python3 -c "print(int($jetzt + float('$STUNDEN') * 3600))")
-          fi
-          bis=$(TZ=Europe/Berlin date -d "@$ENDE" '+%d.%m.%Y %H:%M')
-          if [ "$jetzt" -ge "$ENDE" ]; then
-            echo "Live-Modus beendet (war bis $bis Uhr)." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          echo "Live-Modus läuft bis $bis Uhr. Nächster Durchlauf in $PAUSE_SEKUNDEN s." | tee -a "$GITHUB_STEP_SUMMARY"
-          sleep "$PAUSE_SEKUNDEN"
+          case "$MODUS" in
+            fertig) echo "Wettkampf fertig – keine weiteren Durchläufe." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0;;
+            live)   pause=$PAUSE_LIVE;;
+            ruhe)   pause=$PAUSE_RUHE;;
+            *)      pause=120; echo "::warning::Abholen fehlgeschlagen – neuer Versuch in $pause s";;
+          esac
+          echo "Betriebsart: ${MODUS:-unbekannt}, nächster Durchlauf in $pause s." | tee -a "$GITHUB_STEP_SUMMARY"
+          sleep "$pause"
+          # Läuft schon ein neuerer Durchlauf (z. B. nach einer Änderung gestartet)? Dann übernimmt der – keine doppelte Schleife.
+          neuer=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow aktualisieren.yml --limit 20 --json databaseId,status \
+                  --jq "[.[] | select(.databaseId > $GITHUB_RUN_ID) | select(.status != \"completed\")] | length" || echo 0)
+          if [ "${neuer:-0}" -gt 0 ]; then echo "Ein neuerer Durchlauf läuft bereits – diese Schleife endet hier."; exit 0; fi
           # GitHub antwortet gelegentlich mit Fehlern (z. B. HTTP 503) – dann mehrfach neu versuchen
           for versuch in 1 2 3 4 5 6 7 8 9 10; do
-            if gh workflow run aktualisieren.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f ende="$ENDE" -f stunden=0; then
+            if gh workflow run aktualisieren.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"; then
               echo "Nächster Durchlauf gestartet (Versuch $versuch)."
               exit 0
             fi
