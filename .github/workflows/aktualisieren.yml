@@ -19,6 +19,8 @@ on:
 env:
   # Hier den Wettkampf eintragen (jede Seite des Wettkampfs oder nur die ID):
   ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/21235
+  # Design der Seite: standard, kfvl-so, sg-weissig  (über die Adresse ?design=... trotzdem jedes wählbar)
+  DESIGN: standard
   PAUSE_LIVE: 45          # Sekunden zwischen zwei Durchläufen am Wettkampftag
   PAUSE_RUHE: 1800        # Sekunden zwischen zwei Durchläufen vor dem Wettkampf
   LEBENSZEICHEN: 540      # am Wettkampftag spätestens nach so vielen Sekunden veröffentlichen (für den Hinweis "veraltet")
@@ -53,6 +55,13 @@ jobs:
         run: |
           mkdir -p site/daten
           cp -r index.html designs site/
+          # gewähltes Design als Standard in die Seite schreiben
+          if [ "$DESIGN" != "standard" ] && [ ! -d "designs/$DESIGN" ]; then
+            echo "::warning::Design '$DESIGN' gibt es nicht (vorhanden: standard $(ls designs | tr '\n' ' ')) – nehme 'standard'."
+            DESIGN=standard
+          fi
+          sed -i "s/    design: 'standard',/    design: '$DESIGN',/" site/index.html
+          grep -q "    design: '$DESIGN'," site/index.html && echo "Design: $DESIGN"
           python abholen.py "$ERGEBNIS_URL" site/daten --zustand zustand.json --modus modus.json
           echo "modus=$(python3 -c 'import json; print(json.load(open("modus.json"))["modus"])')" >> "$GITHUB_OUTPUT"
 

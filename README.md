@@ -4,10 +4,16 @@ Live-Ansicht für einen Wettkampf von [ergebnisse.leichtathletik.de](https://erg
 Medaillenspiegel (je Altersklasse), Ergebnisse und Meldungen mit Filtern für Altersklasse, Disziplin, Verein und Name,
 dazu eine Beamer-Ansicht für die Halle.
 
-## Neuen Wettkampf einstellen
+## Wettkampf und Design einstellen
 
-In `.github/workflows/aktualisieren.yml` die Zeile `ERGEBNIS_URL:` ändern (jede Seite des Wettkampfs oder nur die
-Wettkampf-ID) und speichern. **Das ist alles** – der Rest läuft automatisch.
+In `.github/workflows/aktualisieren.yml` oben:
+
+```yaml
+ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/21235   # oder nur die ID
+DESIGN: standard        # standard, kfvl-so, sg-weissig
+```
+
+ändern und speichern. **Das ist alles** – der Rest läuft automatisch, nach 1–2 Minuten ist die Seite aktualisiert.
 
 ## Automatischer Betrieb
 
@@ -37,18 +43,19 @@ Der Workflow startet sich nach jedem Durchlauf selbst neu. Die Pause richtet sic
 
 ## Designs
 
-Das Design wird über die Adresse gewählt – praktisch zum Einbetten auf Vereins-/Verbandsseiten:
+Das Standard-Design legt `DESIGN` im Workflow fest (siehe oben). Über die Adresse lässt sich trotzdem jedes Design aufrufen – praktisch zum Einbetten auf Vereins-/Verbandsseiten:
 
 | Design | Adresse |
 |---|---|
-| Standard | `https://tobaskus.github.io/wkb/` |
+| Standard | `https://tobaskus.github.io/wkb/?design=standard` |
 | KFVL Sächsische Schweiz-Osterzgebirge | `https://tobaskus.github.io/wkb/?design=kfvl-so` |
 | SG Freital-Weißig 1861 | `https://tobaskus.github.io/wkb/?design=sg-weissig` |
 
 Auch mit Reiter, z. B. `?design=kfvl-so#beamer`.
 
 **Neues Design hinzufügen:** Logo nach `designs/<name>/logo.png` legen, in `index.html` im `<style>` einen Block
-`:root[data-design="<name>"]{...}` mit den Farben anlegen (Vorlage: `kfvl-so`) und in `DESIGNS` Logo, Name und Link eintragen.
+`:root[data-design="<name>"]{...}` mit den Farben anlegen (Vorlage: `kfvl-so`), in `DESIGNS` Logo, Name und Link eintragen
+und den Namen im Workflow-Kommentar bei `DESIGN` ergänzen.
 
 ## Einstellungen
 
