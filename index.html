@@ -98,6 +98,10 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
 .det div{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .det small{color:var(--muted)}
 .empty{color:var(--muted);padding:14px 0}
+.verein{display:flex;align-items:center;gap:10px}
+.wappen{flex:0 0 auto;width:32px;height:32px;object-fit:contain;display:inline-block}
+.b-tab .verein{gap:.5em}
+.b-tab .wappen{width:1.5em;height:1.5em}
 .person{all:unset;cursor:pointer}
 .person:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
 .person:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
@@ -229,7 +233,18 @@ body.beamer .warnung{font-size:.8em}
     'kfvl-so': {
       logo: 'designs/kfvl-so/logo.svg',
       name: 'Kreisfachverband Leichtathletik Sächsische Schweiz-Osterzgebirge e.V.',
-      link: 'https://www.leichtathletik-so.de/'
+      link: 'https://www.leichtathletik-so.de/',
+      // Vereinswappen im Medaillenspiegel: Datei in designs/kfvl-so/vereine/ -> Schreibweisen aus den Ergebnislisten
+      wappen: {
+        'lsv-pirna': ['LSV Pirna', 'Leichtathletiksportverein Pirna'],
+        'vfl-pirna-copitz': ['VfL Pirna-Copitz 07', 'VfL Pirna-Copitz'],
+        'esv-lok-pirna': ['ESV Lok. Pirna', 'ESV Lok Pirna', 'ESV Lokomotive Pirna'],
+        'ssv-heidenau': ['SSV Heidenau'],
+        'sg-weissig': ['SG Freital-Weißig 1861', 'SG Weißig 1861', 'SG Freital-Weißig'],
+        'sportclub-freital': ['Sportclub Freital', 'SC Freital'],
+        'sg-motor-wilsdruff': ['SG Motor Wilsdruff']
+        // SG Lok. Hainsberg: noch kein Logo vorhanden
+      }
     }
   };
   const designName = (() => {
@@ -238,6 +253,18 @@ body.beamer .warnung{font-size:.8em}
   })();
   const DESIGN = DESIGNS[designName];
   document.documentElement.dataset.design = designName;
+  // Vereinsname -> Wappen-Datei (Schreibweise egal: Groß/Klein, Punkte, Bindestriche, "e.V.")
+  const vereinsSchluessel = n => String(n || '').toLowerCase().replace(/ß/g, 'ss').replace(/\be\.?\s?v\.?$/, '').replace(/[^a-z0-9äöü]/g, '');
+  const WAPPEN = {};
+  for (const [datei, namen] of Object.entries(DESIGN.wappen || {}))
+    for (const n of namen) WAPPEN[vereinsSchluessel(n)] = `designs/${designName}/vereine/${datei}.png`;
+  const wappenHtml = name => {
+    if (!DESIGN.wappen || CONFIG.mode === 'lv') return '';
+    const datei = WAPPEN[vereinsSchluessel(name)];
+    return datei ? `<img class="wappen" src="${esc(datei)}" alt="" loading="lazy">` : '<span class="wappen"></span>';
+  };
+  const vereinZelle = name => DESIGN.wappen && CONFIG.mode !== 'lv'
+    ? `<span class="verein">${wappenHtml(name)}<span>${esc(name)}</span></span>` : esc(name);
   // =========================================================
 
   const GESAMT = '__gesamt__', ALLE = '__alle__';
@@ -311,7 +338,7 @@ body.beamer .warnung{font-size:.8em}
       totals[r.name] = sig;
       const changed = prevTotals && prevTotals[r.name] !== sig;
       let h = `<tr class="main${changed ? ' flash' : ''}" data-k="${esc(r.name)}">
-        <td class="n">${r.pos}</td><td class="name">${esc(r.name)}</td>
+        <td class="n">${r.pos}</td><td class="name">${vereinZelle(r.name)}</td>
         <td class="n g">${r.g}</td><td class="n">${r.s}</td><td class="n">${r.b}</td><td class="n"><b>${r.g + r.s + r.b}</b></td></tr>`;
       if (open.has(r.name)) {
         h += `<tr class="detail"><td></td><td colspan="5"><div class="det">${r.items.slice().sort((a, b) => a.r - b.r).map(it =>
@@ -478,7 +505,7 @@ body.beamer .warnung{font-size:.8em}
     const rows = spiegel().slice(0, 20);
     return `<div class="b-titel">Medaillenspiegel</div>` + (rows.length ? `<table class="b-tab"><thead><tr><th class="n">#</th><th>${CONFIG.mode === 'lv' ? 'Landesverband' : 'Verein'}</th>
       <th class="n">${medal(1).replace('>1<', '>G<')}</th><th class="n">${medal(2).replace('>2<', '>S<')}</th><th class="n">${medal(3).replace('>3<', '>B<')}</th><th class="n">Σ</th></tr></thead><tbody>${
-      rows.map(r => `<tr><td class="n">${r.pos}</td><td>${esc(r.name)}</td><td class="n"><b>${r.g}</b></td><td class="n">${r.s}</td><td class="n">${r.b}</td><td class="n"><b>${r.g + r.s + r.b}</b></td></tr>`).join('')
+      rows.map(r => `<tr><td class="n">${r.pos}</td><td>${vereinZelle(r.name)}</td><td class="n"><b>${r.g}</b></td><td class="n">${r.s}</td><td class="n">${r.b}</td><td class="n"><b>${r.g + r.s + r.b}</b></td></tr>`).join('')
     }</tbody></table>` : '<div class="empty">Noch keine Medaillen vergeben.</div>');
   }
   function beamerNeueste() {
