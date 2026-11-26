@@ -7,16 +7,38 @@
 <style>
 :root{
   --bg:#f5f6f8;--card:#fff;--text:#1b1f24;--muted:#5d6670;--line:#e2e5ea;--row:#fafbfc;--accent:#c8102e;
-  --gold:#d4a514;--silver:#9aa3ad;--bronze:#b06a35;
+  --gold:#d4a514;--silver:#9aa3ad;--bronze:#b06a35;--primaer:var(--text);
+  /* Beamer */
+  --b-bg:#0f1215;--b-karte:#181d22;--b-linie:#2a3038;--b-text:#f1f3f5;--b-muted:#8f99a3;--b-titel:#ffd75e;--b-akzent:#ffd75e;
+}
+/* ===================== Design: KFVL Sächsische Schweiz-Osterzgebirge ===================== */
+:root[data-design="kfvl-so"]{
+  --bg:#f2f5f9;--card:#fff;--text:#13233a;--muted:#56677c;--line:#dbe3ed;--row:#f5f8fc;
+  --accent:#b8261b;--primaer:#013d77;
+  --b-bg:#03264b;--b-karte:#0a3463;--b-linie:#1c4a7d;--b-text:#fff;--b-muted:#a9bfd8;--b-titel:#fff;--b-akzent:#e0463a;
+}
+@media (prefers-color-scheme: dark){
+  :root[data-design="kfvl-so"]:not([data-theme="light"]){
+    --bg:#0c1520;--card:#13202f;--text:#e7edf4;--muted:#9babbd;--line:#223449;--row:#182739;--accent:#ff6b5e;--primaer:#9cc3f5;
+  }
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){--bg:#121417;--card:#1b1e22;--text:#e8eaed;--muted:#9aa2ab;--line:#2c3036;--row:#202429;--accent:#ff4d5e;}
 }
 :root[data-theme="dark"]{--bg:#121417;--card:#1b1e22;--text:#e8eaed;--muted:#9aa2ab;--line:#2c3036;--row:#202429;--accent:#ff4d5e;}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:900px;margin:0 auto;padding:16px}
-h1{font-size:1.35rem;margin:0 0 2px}
+h1{font-size:1.35rem;margin:0 0 2px;color:var(--primaer)}
+.kopf{display:flex;align-items:center;gap:16px;margin-bottom:12px}
+.kopf .sub{margin-bottom:0}
+.logo{flex:0 0 auto;display:block;background:#fff;border-radius:8px;padding:6px 8px;line-height:0}
+.logo img{height:60px;width:auto}
+:root[data-design="kfvl-so"] .kopf{background:var(--card);border:1px solid var(--line);border-bottom:4px solid var(--accent);
+  border-radius:10px;padding:12px 16px}
+:root[data-design="kfvl-so"] .card-head h2{color:var(--primaer)}
+:root[data-design="kfvl-so"] .card th{color:var(--primaer)}
 .ort{font-size:1rem;font-weight:600;margin-bottom:2px}
 h2{font-size:1rem;margin:0}
 .sub{color:var(--muted);font-size:.85rem;margin-bottom:12px}
@@ -62,43 +84,49 @@ tr.detail td{background:var(--row);white-space:normal;font-size:.86rem}
 .fuss{margin-top:18px;font-size:.82rem;color:var(--muted)}
 .fuss a{color:var(--muted)}
 /* Beamer */
-body.beamer{background:#0f1215;color:#f1f3f5;font-size:clamp(16px,1.6vw,30px)}
+body.beamer{background:var(--b-bg);color:var(--b-text);font-size:clamp(16px,1.6vw,30px)}
 body.beamer .wrap{max-width:none;padding:2vh 3vw}
 body.beamer .normal{display:none}
 #viewBeamer{display:none}
 body.beamer #viewBeamer{display:block}
 .b-kopf{display:flex;justify-content:space-between;align-items:baseline;gap:2vw;margin-bottom:2vh}
-.b-kopf h1{font-size:2.1em;margin:0;color:#fff}
-.b-kopf .ort{font-size:1.1em;color:#aab2bb;font-weight:600}
+.b-kopf h1{font-size:2.1em;margin:0;color:var(--b-text)}
+.b-kopf{align-items:center}
+.b-kopf .logo img{height:2.6em}
+.b-links{display:flex;align-items:center;gap:1.2vw}
+.b-kopf .ort{font-size:1.1em;color:var(--b-muted);font-weight:600}
 .b-uhr{font-size:2.1em;font-weight:700;font-variant-numeric:tabular-nums}
-.b-titel{font-size:1.35em;font-weight:700;margin:0 0 1.5vh;color:#ffd75e}
+.b-titel{font-size:1.35em;font-weight:700;margin:0 0 1.5vh;color:var(--b-titel);border-left:.25em solid var(--b-akzent);padding-left:.5em}
 .b-tab{width:100%;border-collapse:collapse}
-.b-tab td,.b-tab th{border-bottom:1px solid #2a3038;padding:.45em .5em;font-size:1em}
-.b-tab th{color:#8f99a3;font-size:.75em}
+.b-tab td,.b-tab th{border-bottom:1px solid var(--b-linie);padding:.45em .5em;font-size:1em}
+.b-tab th{color:var(--b-muted);font-size:.75em}
 .b-tab td.n,.b-tab th.n{text-align:center;width:4em}
 .b-tab .m{width:1.5em;height:1.5em;line-height:1.5em;font-size:.75em}
 .b-raster{display:grid;grid-template-columns:repeat(auto-fit,minmax(32vw,1fr));gap:1.6vh 2vw}
-.b-karte{background:#181d22;border:1px solid #2a3038;border-radius:.5em;padding:.6em .9em}
-.b-karte h2{font-size:1.1em;margin:0 0 .2em;color:#fff}
-.b-karte small{color:#8f99a3}
+.b-karte{background:var(--b-karte);border:1px solid var(--b-linie);border-radius:.5em;padding:.6em .9em}
+.b-karte h2{font-size:1.1em;margin:0 0 .2em;color:var(--b-text)}
+.b-karte small{color:var(--b-muted)}
 .b-karte table{width:100%;border-collapse:collapse;margin-top:.3em}
 .b-karte td{padding:.2em .3em;border:0;white-space:normal;line-height:1.25}
 .b-karte h2 small{font-weight:400;font-size:.75em}
 .b-karte td.r{text-align:right;font-weight:700;white-space:nowrap}
 .b-punkte{display:flex;gap:.5em;justify-content:center;margin-top:2vh}
-.b-punkte span{width:.6em;height:.6em;border-radius:50%;background:#39414a}
-.b-punkte span.on{background:#ffd75e}
+.b-punkte span{width:.6em;height:.6em;border-radius:50%;background:var(--b-linie)}
+.b-punkte span.on{background:var(--b-akzent)}
 body.beamer .warnung{font-size:.8em}
-@media (max-width:560px){.nav a{padding:8px 9px}th,td{padding:6px 5px}td.n,th.n{width:38px}.hide-sm{display:none}}
+@media (max-width:560px){.kopf{flex-direction:column;align-items:flex-start;gap:8px}.logo img{height:44px}.nav a{padding:8px 9px}th,td{padding:6px 5px}td.n,th.n{width:38px}.hide-sm{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="normal">
-  <h1 id="title">Medaillenspiegel</h1>
-  <div class="ort" id="datumOrt"></div>
-  <div class="sub" id="stand">Lade Ergebnisse…</div>
-  </div>
+  <header class="kopf normal">
+    <a class="logo" id="logoLink" target="_blank" rel="noopener" hidden><img id="logo" alt=""></a>
+    <div>
+      <h1 id="title">Medaillenspiegel</h1>
+      <div class="ort" id="datumOrt"></div>
+      <div class="sub" id="stand">Lade Ergebnisse…</div>
+    </div>
+  </header>
   <div class="warnung" id="warnung" hidden></div>
   <nav class="nav normal">
     <a href="#medaillen" id="navMed">Medaillenspiegel</a>
@@ -132,7 +160,7 @@ body.beamer .warnung{font-size:.8em}
     <div id="ergListe"></div>
   </section>
   <section id="viewBeamer">
-    <div class="b-kopf"><div><h1 id="bTitel"></h1><div class="ort" id="bOrt"></div></div><div class="b-uhr" id="bUhr"></div></div>
+    <div class="b-kopf"><div class="b-links"><span class="logo" id="bLogoRahmen" hidden><img id="bLogo" alt=""></span><div><h1 id="bTitel"></h1><div class="ort" id="bOrt"></div></div></div><div class="b-uhr" id="bUhr"></div></div>
     <div id="bInhalt"></div>
     <div class="b-punkte" id="bPunkte"></div>
   </section>
@@ -144,6 +172,8 @@ body.beamer .warnung{font-size:.8em}
   // ===================== EINSTELLUNGEN =====================
   // Welcher Wettkampf abgeholt wird, steht in .github/workflows/aktualisieren.yml (ERGEBNIS_URL).
   const CONFIG = {
+    // Design: 'standard' oder ein Name aus DESIGNS (unten). Über die Adresse wählbar: ...?design=kfvl-so
+    design: 'standard',
     // Von GitHub aufbereitete Ergebnisse (liegen neben dieser Datei)
     quelle: 'daten/ergebnisse.json',
     // Kleine Datei, die nur sagt, ob es neue Daten gibt (spart Datenvolumen)
@@ -162,6 +192,24 @@ body.beamer .warnung{font-size:.8em}
     beamerSekunden: 20,
     beamerErgebnisse: 6
   };
+  // =========================================================
+
+  // ===================== DESIGNS =====================
+  // Farben stehen oben im <style> unter :root[data-design="..."]; hier Logo, Name und Link.
+  const DESIGNS = {
+    'standard': {},
+    'kfvl-so': {
+      logo: 'designs/kfvl-so/logo.png',
+      name: 'Kreisfachverband Leichtathletik Sächsische Schweiz-Osterzgebirge e.V.',
+      link: 'https://www.leichtathletik-so.de/'
+    }
+  };
+  const designName = (() => {
+    const n = (new URLSearchParams(location.search).get('design') || CONFIG.design || 'standard').toLowerCase();
+    return DESIGNS[n] ? n : 'standard';
+  })();
+  const DESIGN = DESIGNS[designName];
+  document.documentElement.dataset.design = designName;
   // =========================================================
 
   const GESAMT = '__gesamt__', ALLE = '__alle__';
@@ -486,6 +534,14 @@ body.beamer .warnung{font-size:.8em}
   async function loop() {
     await load();
     if (CONFIG.interval > 0 && !window.EINGEBETTETE_DATEN) setTimeout(loop, CONFIG.interval * 1000);
+  }
+
+  if (DESIGN.logo) {
+    $('logo').src = $('bLogo').src = DESIGN.logo;
+    $('logo').alt = $('bLogo').alt = DESIGN.name || '';
+    if (DESIGN.link) $('logoLink').href = DESIGN.link; else $('logoLink').removeAttribute('href');
+    $('logoLink').title = DESIGN.name || '';
+    $('logoLink').hidden = $('bLogoRahmen').hidden = false;
   }
 
   window.addEventListener('hashchange', render);

@@ -52,7 +52,7 @@ jobs:
         id: abholen
         run: |
           mkdir -p site/daten
-          cp index.html site/
+          cp -r index.html designs site/
           python abholen.py "$ERGEBNIS_URL" site/daten --zustand zustand.json --modus modus.json
           echo "modus=$(python3 -c 'import json; print(json.load(open("modus.json"))["modus"])')" >> "$GITHUB_OUTPUT"
 

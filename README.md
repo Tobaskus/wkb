@@ -35,6 +35,20 @@ Der Workflow startet sich nach jedem Durchlauf selbst neu. Die Pause richtet sic
   (Doppelklick = Vollbild, Esc = zurück)
 - Die Seite fragt jede Minute nur eine kleine Datei (`daten/version.json`) ab und lädt die Ergebnisse nur bei Änderungen.
 
+## Designs
+
+Das Design wird über die Adresse gewählt – praktisch zum Einbetten auf Vereins-/Verbandsseiten:
+
+| Design | Adresse |
+|---|---|
+| Standard | `https://tobaskus.github.io/wkb/` |
+| KFVL Sächsische Schweiz-Osterzgebirge | `https://tobaskus.github.io/wkb/?design=kfvl-so` |
+
+Auch mit Reiter, z. B. `?design=kfvl-so#beamer`.
+
+**Neues Design hinzufügen:** Logo nach `designs/<name>/logo.png` legen, in `index.html` im `<style>` einen Block
+`:root[data-design="<name>"]{...}` mit den Farben anlegen (Vorlage: `kfvl-so`) und in `DESIGNS` Logo, Name und Link eintragen.
+
 ## Einstellungen
 
 - Oben in `index.html` im Block `CONFIG`: Wertung nach Verein oder Landesverband, Wartezeit nach „offiziell“ (5 Min.),
@@ -45,4 +59,5 @@ Der Workflow startet sich nach jedem Durchlauf selbst neu. Die Pause richtet sic
 
 - `abholen.py` – holt und bereitet die Daten auf (`python abholen.py <ID> <ordner> --zustand zustand.json --modus modus.json`)
 - `index.html` – die Seite
+- `designs/` – Logos der Designs
 - `.github/workflows/aktualisieren.yml` – der automatische Betrieb
