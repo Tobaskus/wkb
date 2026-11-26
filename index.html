@@ -16,8 +16,8 @@
 html:root[data-design="kfvl-so"]{
   color-scheme:light;
   --bg:#fff;--card:#fff;--text:#13233a;--muted:#56677c;--line:#dfe6ee;--row:#f5f8fc;
-  --accent:#b8261b;--primaer:#013d77;
-  --b-bg:#fff;--b-karte:#fff;--b-linie:#dfe6ee;--b-text:#13233a;--b-muted:#56677c;--b-titel:#013d77;--b-akzent:#b8261b;
+  --accent:#b32917;--primaer:#003f74;
+  --b-bg:#fff;--b-karte:#fff;--b-linie:#dfe6ee;--b-text:#13233a;--b-muted:#56677c;--b-titel:#003f74;--b-akzent:#b32917;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){--bg:#121417;--card:#1b1e22;--text:#e8eaed;--muted:#9aa2ab;--line:#2c3036;--row:#202429;--accent:#ff4d5e;}
@@ -34,10 +34,10 @@ h1{font-size:1.35rem;margin:0 0 2px;color:var(--primaer)}
 .logo img{height:60px;width:auto}
 :root[data-design="kfvl-so"] .kopf{border-bottom:4px solid var(--accent);padding:4px 0 14px}
 :root[data-design="kfvl-so"] .logo{padding:0}
-:root[data-design="kfvl-so"] .card{box-shadow:0 1px 3px rgba(1,61,119,.06)}
+:root[data-design="kfvl-so"] .card{box-shadow:0 1px 3px rgba(0,63,116,.06)}
 :root[data-design="kfvl-so"] .b-kopf{border-bottom:.2em solid var(--b-akzent);padding-bottom:1.2vh}
 :root[data-design="kfvl-so"] .b-kopf h1,:root[data-design="kfvl-so"] .b-uhr{color:var(--primaer)}
-:root[data-design="kfvl-so"] .b-karte{box-shadow:0 .1em .4em rgba(1,61,119,.08)}
+:root[data-design="kfvl-so"] .b-karte{box-shadow:0 .1em .4em rgba(0,63,116,.08)}
 :root[data-design="kfvl-so"] .card-head h2{color:var(--primaer)}
 :root[data-design="kfvl-so"] .card th{color:var(--primaer)}
 .ort{font-size:1rem;font-weight:600;margin-bottom:2px}
@@ -200,7 +200,7 @@ body.beamer .warnung{font-size:.8em}
   const DESIGNS = {
     'standard': {},
     'kfvl-so': {
-      logo: 'designs/kfvl-so/logo.png',
+      logo: 'designs/kfvl-so/logo.svg',
       name: 'Kreisfachverband Leichtathletik Sächsische Schweiz-Osterzgebirge e.V.',
       link: 'https://www.leichtathletik-so.de/'
     }
