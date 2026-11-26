@@ -20,7 +20,7 @@ env:
   # Hier den Wettkampf eintragen (jede Seite des Wettkampfs oder nur die ID):
   ERGEBNIS_URL: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/21235
   # Design der Seite: standard, kfvl-so, sg-weissig  (über die Adresse ?design=... trotzdem jedes wählbar)
-  DESIGN: standard
+  DESIGN: kfvl-so
   PAUSE_LIVE: 45          # Sekunden zwischen zwei Durchläufen am Wettkampftag
   PAUSE_RUHE: 1800        # Sekunden zwischen zwei Durchläufen vor dem Wettkampf
   LEBENSZEICHEN: 540      # am Wettkampftag spätestens nach so vielen Sekunden veröffentlichen (für den Hinweis "veraltet")
